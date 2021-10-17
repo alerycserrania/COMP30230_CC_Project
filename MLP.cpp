@@ -32,7 +32,7 @@ MLP::~MLP() {
     delete[] wUpper;
 }
 
-void MLP::train(const double **inputs, const double **targets, int nbExamples, double learningRate, int maxEpochs, int updatePeriod) {
+void MLP::train(double **inputs, double **targets, int nbExamples, double learningRate, int maxEpochs, int updatePeriod) {
     double error;
     double *hiddens = new double[nbHiddens];
     double *outputs = new double[nbOutputs];
@@ -159,7 +159,7 @@ void MLP::updateWeights(double **dwLower, double **dwUpper, double learningRate)
     }
 }
 
-void MLP::test(const double **inputs, const double **targets, int nbTests) {
+void MLP::test(double **inputs, double **targets, int nbTests) {
     double *hiddens = new double[nbHiddens];
     double *outputs = new double[nbOutputs];
     double *aHiddens = new double[nbHiddens];
@@ -167,23 +167,7 @@ void MLP::test(const double **inputs, const double **targets, int nbTests) {
 
     for (int i = 0; i < nbTests; i++) {
         forward(inputs[i], hiddens, aHiddens, outputs, aOutputs);
-        std::cout << "(" << inputs[i][0] << ", " << inputs[i][1] << ") -> " << outputs[0] << std::endl;
-    }
-
-    std::cout << "upper w:" << std::endl;
-    for (int j = 0; j < nbOutputs; j++) {
-        for (int i = 0; i < nbHiddens; i++) {
-            std::cout << wUpper[j][i] << " ";
-        }
-        std::cout << std::endl;
-    }
-
-    std::cout << "lower w:" << std::endl;
-    for (int j = 0; j < nbHiddens; j++) {
-        for (int i = 0; i < nbInputs; i++) {
-            std::cout << wLower[j][i] << " ";
-        }
-        std::cout << std::endl;
+        std::cout << "(" << inputs[i][0] << ", " << inputs[i][1] << ") -> got: " << outputs[0] << ", expected: " << targets[i][0] << std::endl;
     }
 
     delete[] hiddens;

@@ -12,9 +12,9 @@ public:
 
     ~MLP();
 
-    void train(const double **inputs, const double **targets, int nbExamples, double learningRate, int maxEpochs, int updatePeriod);
+    void train(double **inputs, double **targets, int nbExamples, double learningRate, int maxEpochs, int updatePeriod);
 
-    void test(const double **inputs, const double **targets, int nbTests);
+    void test(double **inputs, double **targets, int nbTests);
 
 private:
     void randomiseWeights();
