@@ -34,12 +34,12 @@ BaseMLP::BaseMLP(
         wUpper(nbOutputs),
         wLower(nbHiddens) {
 
-    for (int j = 0; j < nbOutputs; j++) {
-        wUpper[j].resize(nbHiddens);
+    for (int j = 0; j < nbHiddens; j++) {
+        wLower[j].resize(nbInputs + 1);
     }
 
-    for (int j = 0; j < nbHiddens; j++) {
-        wLower[j].resize(nbInputs);
+    for (int j = 0; j < nbOutputs; j++) {
+        wUpper[j].resize(nbHiddens + 1);
     }
 }
 
@@ -50,11 +50,11 @@ void BaseMLP::Train(int nbExamples, const Matrix &inputs, const Matrix &targets)
     double error;
 
     for (int j = 0; j < nbHiddens; j++) {
-        dwLower[j].resize(nbInputs);
+        dwLower[j].resize(nbInputs + 1);
     }
 
     for (int j = 0; j < nbOutputs; j++) {
-        dwUpper[j].resize(nbHiddens);
+        dwUpper[j].resize(nbHiddens + 1);
     }
 
     randomiseWeights();
@@ -82,6 +82,7 @@ void BaseMLP::forward(const Vector &inputs, Vector &hiddens, Vector &aHiddens, V
         for (int i = 0; i < nbInputs; i++) {
             aHiddens[j] += wLower[j][i] * inputs[i];
         }
+        aHiddens[j] += wLower[j][nbInputs];
         hiddens[j] = hiddenActivation(aHiddens[j]);
     }
 
@@ -90,6 +91,7 @@ void BaseMLP::forward(const Vector &inputs, Vector &hiddens, Vector &aHiddens, V
         for (int i = 0; i < nbHiddens; i++) {
             aOutputs[j] += wUpper[j][i] * hiddens[i];
         }
+        aOutputs[j] += wUpper[j][nbHiddens];
         outputs[j] = outputActivation(aOutputs[j]);
     }
 }
@@ -116,6 +118,7 @@ double BaseMLP::backwards(
         for (int i = 0; i < nbHiddens; i++) {
             dwUpper[j][i] += -learningRate * oDelta[j] * hiddens[i];
         }
+        dwUpper[j][nbHiddens] += -learningRate * oDelta[j];
     }
 
     for (int j = 0; j < nbHiddens; j++) {
@@ -129,6 +132,7 @@ double BaseMLP::backwards(
         for (int i = 0; i < nbInputs; i++) {
             dwLower[j][i] += -learningRate * hDelta[j] * inputs[i];
         }
+        dwLower[j][nbInputs] += -learningRate * hDelta[j];
     }
 
     return error;
@@ -136,14 +140,14 @@ double BaseMLP::backwards(
 
 void BaseMLP::updateWeights(Matrix &dwLower, Matrix &dwUpper) {
     for (int j = 0; j < nbHiddens; j++) {
-        for (int i = 0; i < nbInputs; i++) {
+        for (int i = 0; i < nbInputs + 1; i++) {
             wLower[j][i] += dwLower[j][i];
             dwLower[j][i] = 0;
         }
     }
 
     for (int j = 0; j < nbOutputs; j++) {
-        for (int i = 0; i < nbHiddens; i++) {
+        for (int i = 0; i < nbHiddens + 1; i++) {
             wUpper[j][i] += dwUpper[j][i];
             dwUpper[j][i] = 0;
         }

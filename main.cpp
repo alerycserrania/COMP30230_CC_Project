@@ -19,21 +19,24 @@ void readExample(
 
 int main(int argc, char **argv) {
 
-    if (argc != 7) {
-        std::cerr << "use: ./ <data> <ratioExamplesTests> <nbHiddenUnits> <learningRate> <maxEpochs> <updatePeriod>"
-                  << std::endl;
+    if (argc != 8) {
+        std::cerr
+                << "use: ./ <datafile> <mlpType=r|c> <ratioExamplesTests> <nbHiddenUnits> <learningRate> <maxEpochs> <updatePeriod>"
+                << std::endl;
         exit(1);
     }
 
     int nbExamples, nbInputs, nbOutputs;
     int nbHiddenUnits, maxEpochs, updatePeriod;
     double ratioExamplesTests, learningRate;
+    std::string mlpType;
 
-    ratioExamplesTests = atof(argv[2]);
-    nbHiddenUnits = atoi(argv[3]);
-    learningRate = atof(argv[4]);
-    maxEpochs = atoi(argv[5]);
-    updatePeriod = atoi(argv[6]);
+    mlpType = argv[2];
+    ratioExamplesTests = atof(argv[3]);
+    nbHiddenUnits = atoi(argv[4]);
+    learningRate = atof(argv[5]);
+    maxEpochs = atoi(argv[6]);
+    updatePeriod = atoi(argv[7]);
 
     std::ifstream infile(argv[1]);
     if (!infile.is_open()) {
@@ -78,32 +81,66 @@ int main(int argc, char **argv) {
 
     infile.close();
 
-    MLPClassifier mlp(
-            nbInputs, nbHiddenUnits, nbOutputs,
-            learningRate, maxEpochs, updatePeriod,
-            activation::sigmoid, activation::dsigmoid,
-            activation::sigmoid, activation::dsigmoid
-    );
-    mlp.Train(nbTrainings, inTrainings, outTrainings);
+    if (mlpType == "r") {
+        Matrix result;
 
-    Matrix result;
-    mlp.Predict(nbTests, inTests, result);
-
-    int nbError = 0;
-    for (int i = 0; i < nbTests; i++) {
-        double prediction = result[i][0];
-        double expected = std::distance(
-                outTests[i].cbegin(),
-                std::find(outTests[i].cbegin(), outTests[i].cend(), 1)
+        MLPRegressor mlp(
+                nbInputs, nbHiddenUnits, nbOutputs,
+                learningRate, maxEpochs, updatePeriod,
+                activation::sigmoid, activation::dsigmoid,
+                activation::sigmoid, activation::dsigmoid
         );
+        mlp.Train(nbTrainings, inTrainings, outTrainings);
+        mlp.Predict(nbTests, inTests, result);
 
-        std::cout << "Prediction: " << result[i][0];
-        std::cout << ", Expected: " << expected << std::endl;
+        double error = 0.0;
+        for (int i = 0; i < nbTests; i++) {
+            for (int j = 0; j < nbOutputs; j++) {
+                error += pow(outTests[i][j] - result[i][j], 2);
+            }
 
-        if (prediction != expected) nbError += 1;
+            std::cout << "Expected: ";
+            for (int j = 0; j < nbOutputs; j++) {
+                std::cout << outTests[i][j] << " ";
+            }
+            std::cout << ", Predicted: ";
+            for (int j = 0; j < nbOutputs; j++) {
+                std::cout << result[i][j] << " ";
+            }
+            std::cout << std::endl;
+        }
+
+        std::cout << "Error: " << error / 2. << std::endl;
+    } else {
+        Matrix result;
+
+        MLPClassifier mlp(
+                nbInputs, nbHiddenUnits, nbOutputs,
+                learningRate, maxEpochs, updatePeriod,
+                activation::sigmoid, activation::dsigmoid,
+                activation::sigmoid, activation::dsigmoid
+        );
+        mlp.Train(nbTrainings, inTrainings, outTrainings);
+        mlp.Predict(nbTests, inTests, result);
+
+        int nbError = 0;
+        for (int i = 0; i < nbTests; i++) {
+            double prediction = result[i][0];
+            double expected = std::distance(
+                    outTests[i].cbegin(),
+                    std::find(outTests[i].cbegin(), outTests[i].cend(), 1)
+            );
+
+            std::cout << "Prediction: " << result[i][0];
+            std::cout << ", Expected: " << expected << std::endl;
+
+            if (prediction != expected) {
+                nbError += 1;
+            }
+        }
+        double errorRate = (double) nbError / (double) nbTests;
+        std::cout << "Error rate: " << errorRate << "(" << nbError << "/" << nbTests << ")" << std::endl;
     }
-    double errorRate = (double)nbError / (double)nbTests;
-    std::cout << "Error rate: " << errorRate << "(" << nbError << "/" << nbTests << ")" << std::endl;
 
     return 0;
 }
