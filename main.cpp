@@ -3,19 +3,25 @@
 #include <string>
 #include <fstream>
 
-#include "MLP.h"
+#include "MLPRegressor.h"
+#include "activations.h"
+#include "MLPClassifier.h"
 
-double fo(double);
-double dfo(double);
-double fh(double);
-double dfh(double);
 
-void readExample(double** inExamples, double** outExamples, int i, int nbInputs, int nbOutputs, const std::string &line);
+void readExample(
+        const std::string &line,
+        Matrix &inExamples,
+        Matrix &outExamples,
+        int numExample,
+        int nbInputs,
+        int nbOutputs
+);
 
-int main(int argc, char ** argv) {
+int main(int argc, char **argv) {
 
     if (argc != 7) {
-        std::cerr << "use: ./ <data> <ratioExamplesTests> <nbHiddenUnits> <learningRate> <maxEpochs> <updatePeriod>" << std::endl;
+        std::cerr << "use: ./ <data> <ratioExamplesTests> <nbHiddenUnits> <learningRate> <maxEpochs> <updatePeriod>"
+                  << std::endl;
         exit(1);
     }
 
@@ -50,66 +56,83 @@ int main(int argc, char ** argv) {
     int nbTrainings = int(nbExamples * ratioExamplesTests);
     int nbTests = nbExamples - nbTrainings;
 
-    double **inTrainings = new double*[nbTrainings];
-    double **outTrainings = new double*[nbTrainings];
+    Matrix inTrainings(nbTrainings);
+    Matrix outTrainings(nbTrainings);
     for (int i = 0; i < nbTrainings; i++) {
         if (!std::getline(infile, line)) {
             std::cerr << "Example " << i << " expected but not found." << std::endl;
             exit(0);
         }
-        readExample(inTrainings, outTrainings, i, nbInputs, nbOutputs, line);
+        readExample(line, inTrainings, outTrainings, i, nbInputs, nbOutputs);
     }
 
-    double **inTests = new double*[nbTests];
-    double **outTests = new double*[nbTests];
+    Matrix inTests(nbTests);
+    Matrix outTests(nbTests);
     for (int i = 0; i < nbTests; i++) {
         if (!std::getline(infile, line)) {
             std::cerr << "Example " << i << " expected but not found." << std::endl;
             exit(0);
         }
-        readExample(inTests, outTests, i, nbInputs, nbOutputs, line);
+        readExample(line, inTests, outTests, i, nbInputs, nbOutputs);
     }
 
     infile.close();
 
-    MLP mlp(nbInputs, nbHiddenUnits, nbOutputs, fo, dfo, fh, dfh);
-    mlp.train(inTrainings, outTrainings, nbTrainings, learningRate, maxEpochs, updatePeriod);
-    mlp.test(inTests, outTests, nbTests);
+    MLPClassifier mlp(
+            nbInputs, nbHiddenUnits, nbOutputs,
+            learningRate, maxEpochs, updatePeriod,
+            activation::sigmoid, activation::dsigmoid,
+            activation::sigmoid, activation::dsigmoid
+    );
+    mlp.Train(nbTrainings, inTrainings, outTrainings);
+
+    Matrix result;
+    mlp.Predict(nbTests, inTests, result);
+
+    int nbError = 0;
+    for (int i = 0; i < nbTests; i++) {
+        double prediction = result[i][0];
+        double expected = std::distance(
+                outTests[i].cbegin(),
+                std::find(outTests[i].cbegin(), outTests[i].cend(), 1)
+        );
+
+        std::cout << "Prediction: " << result[i][0];
+        std::cout << ", Expected: " << expected << std::endl;
+
+        if (prediction != expected) nbError += 1;
+    }
+    double errorRate = (double)nbError / (double)nbTests;
+    std::cout << "Error rate: " << errorRate << "(" << nbError << "/" << nbTests << ")" << std::endl;
+
     return 0;
 }
 
-void readExample(double** inExamples, double** outExamples, int i, int nbInputs, int nbOutputs, const std::string &line) {
-    inExamples[i] = new double[nbInputs];
-    outExamples[i] = new double[nbOutputs];
+void readExample(
+        const std::string &line,
+        Matrix &inExamples,
+        Matrix &outExamples,
+        int numExample,
+        int nbInputs,
+        int nbOutputs
+) {
+    inExamples[numExample].resize(nbInputs);
+    outExamples[numExample].resize(nbOutputs);
 
     std::istringstream iss(line);
     for (int j = 0; j < nbInputs; j++) {
-        if (!(iss >> inExamples[i][j])) {
-            std::cerr << "Expected input " << j << " for example " << i << std::endl;
+        if (!(iss >> inExamples[numExample][j])) {
+            std::cerr << "Expected input " << j << " for example " << numExample << std::endl;
             exit(0);
         }
     }
 
     for (int j = 0; j < nbOutputs; j++) {
-        if (!(iss >> outExamples[i][j])) {
-            std::cerr << "Expected output " << j << " for example " << i << std::endl;
+        if (!(iss >> outExamples[numExample][j])) {
+            std::cerr << "Expected output " << j << " for example " << numExample << std::endl;
             exit(0);
         }
     }
 }
 
-double fo(double x) {
-    return 1 / (1 + exp(-x));
-}
 
-double dfo(double x) {
-    return fo(x)*(1 - fo(x));
-}
-
-double fh(double x) {
-    return 1 / (1 + exp(-x));
-}
-
-double dfh(double x) {
-    return fh(x)*(1 - fh(x));
-}
