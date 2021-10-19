@@ -28,4 +28,4 @@ public:
 };
 
 
-#endif //CCPROJECT_MLPREGRESSOR_H
+#endif //CCPROJECT_MLPCLASSIFIER_H
