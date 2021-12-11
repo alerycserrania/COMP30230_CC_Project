@@ -2,11 +2,27 @@
 #include <sstream>
 #include <string>
 #include <fstream>
+#include <unordered_map>
+#include <chrono>
 
 #include "MLPRegressor.h"
 #include "activations.h"
 #include "MLPClassifier.h"
 
+
+std::unordered_map<std::string, std::function<double(double)>> NAME_TO_ACTIVATION = {
+        {"relu",    activation::relu},
+        {"linear",  activation::linear},
+        {"sigmoid", activation::sigmoid},
+        {"tanh",    activation::hyperbolictan},
+};
+
+std::unordered_map<std::string, std::function<double(double)>> D_NAME_TO_ACTIVATION = {
+        {"relu",    activation::drelu},
+        {"linear",  activation::dlinear},
+        {"sigmoid", activation::dsigmoid},
+        {"tanh",    activation::dhyperbolictan},
+};
 
 void readExample(
         const std::string &line,
@@ -19,9 +35,22 @@ void readExample(
 
 int main(int argc, char **argv) {
 
-    if (argc != 8) {
+    if (argc != 12) {
         std::cerr
-                << "use: ./ <datafile> <mlpType=r|c> <ratioExamplesTests> <nbHiddenUnits> <learningRate> <maxEpochs> <updatePeriod>"
+                << "use: ./ <datafile> <mlpType> <ratioExamplesTests> <nbHiddenUnits> <hActivation> <oActivation> <learningRate> <maxEpochs> <updatePeriod> <printTestResult> <printFinalWeights>"
+                << std::endl
+                << "\t-datafile: input for training and test data" << std::endl
+                << "\t-mlpType: r = regressor (output real values), c = classifier (output binary values)" << std::endl
+                << "\t-ratioExamplesTests: real number to define the number of example to use in datafile" << std::endl
+                << "\t-nbHiddenUnits: number of hidden units (1 layer only)" << std::endl
+                << "\t-hActivation: activation function for hidden units (relu, sigmoid, tanh, linear)" << std::endl
+                << "\t-oActivation: activation function for output units (relu, sigmoid, tanh, linear)" << std::endl
+                << "\t-learningRate: the learning rate" << std::endl
+                << "\t-maxEpochs: number of times the dataset is passed forward and backward in the network"
+                << std::endl
+                << "\t-updatePeriod: weights are updated every <updatePeriod> example" << std::endl
+                << "\t-printTestResult (y/n): print the test result directly to stdout" << std::endl
+                << "\t-printFinalWeights (y/n): print the weights at the end of the learning step to stdout"
                 << std::endl;
         exit(1);
     }
@@ -29,14 +58,19 @@ int main(int argc, char **argv) {
     int nbExamples, nbInputs, nbOutputs;
     int nbHiddenUnits, maxEpochs, updatePeriod;
     double ratioExamplesTests, learningRate;
-    std::string mlpType;
+    std::string mlpType, hActivation, oActivation;
+    char printTestResult, printFinalWeights;
 
     mlpType = argv[2];
     ratioExamplesTests = atof(argv[3]);
     nbHiddenUnits = atoi(argv[4]);
-    learningRate = atof(argv[5]);
-    maxEpochs = atoi(argv[6]);
-    updatePeriod = atoi(argv[7]);
+    hActivation = argv[5];
+    oActivation = argv[6];
+    learningRate = atof(argv[7]);
+    maxEpochs = atoi(argv[8]);
+    updatePeriod = atoi(argv[9]);
+    printTestResult = argv[10][0];
+    printFinalWeights = argv[11][0];
 
     std::ifstream infile(argv[1]);
     if (!infile.is_open()) {
@@ -81,16 +115,33 @@ int main(int argc, char **argv) {
 
     infile.close();
 
+    std::cout << "type: " << mlpType << std::endl;
+    std::cout << "nb trainings: " << nbTrainings << std::endl;
+    std::cout << "nb tests: " << nbTests << std::endl;
+    std::cout << "nb hidden units: " << nbHiddenUnits << std::endl;
+    std::cout << "hidden activation: " << hActivation << std::endl;
+    std::cout << "output activation: " << oActivation << std::endl;
+    std::cout << "learning rate: " << learningRate << std::endl;
+    std::cout << "max epochs: " << maxEpochs << std::endl;
+    std::cout << "update period: " << updatePeriod << std::endl;
+    std::cout << std::endl;
+
     if (mlpType == "r") {
         Matrix result;
 
         MLPRegressor mlp(
                 nbInputs, nbHiddenUnits, nbOutputs,
                 learningRate, maxEpochs, updatePeriod,
-                activation::sigmoid, activation::dsigmoid,
-                activation::sigmoid, activation::dsigmoid
+                NAME_TO_ACTIVATION[oActivation], D_NAME_TO_ACTIVATION[oActivation],
+                NAME_TO_ACTIVATION[hActivation], D_NAME_TO_ACTIVATION[hActivation]
         );
+
+        auto t_start = std::chrono::high_resolution_clock::now();
         mlp.Train(nbTrainings, inTrainings, outTrainings);
+        auto t_end = std::chrono::high_resolution_clock::now();
+        auto t_diff = std::chrono::duration<double>(t_end - t_start).count();
+        std::cout << std::endl << "training time: " << t_diff;
+
         mlp.Predict(nbTests, inTests, result);
 
         double error = 0.0;
@@ -98,19 +149,32 @@ int main(int argc, char **argv) {
             for (int j = 0; j < nbOutputs; j++) {
                 error += pow(outTests[i][j] - result[i][j], 2);
             }
-
-            std::cout << "Expected: ";
-            for (int j = 0; j < nbOutputs; j++) {
-                std::cout << outTests[i][j] << " ";
-            }
-            std::cout << ", Predicted: ";
-            for (int j = 0; j < nbOutputs; j++) {
-                std::cout << result[i][j] << " ";
-            }
-            std::cout << std::endl;
         }
 
-        std::cout << "Error: " << error / 2. << std::endl;
+
+        std::cout << std::endl;
+        std::cout << "error cost: " << error / 2. << std::endl;
+
+        if (printTestResult == 'y') {
+            std::cout << std::endl;
+            for (int i = 0; i < nbTests; i++) {
+                std::cout << "got: ";
+                for (int j = 0; j < nbOutputs; j++) {
+                    std::cout << result[i][j] << ", ";
+                }
+
+                std::cout << "expected: ";
+                for (int j = 0; j < nbOutputs; j++) {
+                    std::cout << outTests[i][j] << ", ";
+                }
+                std::cout << std::endl;
+            }
+        }
+
+        if (printFinalWeights == 'y') {
+            std::cout << std::endl;
+            std::cout << mlp << std::endl;
+        }
     } else {
         Matrix result;
 
@@ -120,7 +184,13 @@ int main(int argc, char **argv) {
                 activation::sigmoid, activation::dsigmoid,
                 activation::sigmoid, activation::dsigmoid
         );
+
+        auto t_start = std::chrono::high_resolution_clock::now();
         mlp.Train(nbTrainings, inTrainings, outTrainings);
+        auto t_end = std::chrono::high_resolution_clock::now();
+        auto t_diff = std::chrono::duration<double>(t_end - t_start).count();
+        std::cout << std::endl << "training time: " << t_diff;
+
         mlp.Predict(nbTests, inTests, result);
 
         int nbError = 0;
@@ -130,16 +200,48 @@ int main(int argc, char **argv) {
                     outTests[i].cbegin(),
                     std::find(outTests[i].cbegin(), outTests[i].cend(), 1)
             );
-
-            std::cout << "Prediction: " << result[i][0];
-            std::cout << ", Expected: " << expected << std::endl;
-
+            std::cout << prediction << ", " << expected << std::endl;
             if (prediction != expected) {
                 nbError += 1;
             }
+
+
         }
-        double errorRate = (double) nbError / (double) nbTests;
-        std::cout << "Error rate: " << errorRate << "(" << nbError << "/" << nbTests << ")" << std::endl;
+
+        std::cout << std::endl;
+        std::cout << "error rate: " << (double) nbError / (double) nbTests << std::endl;
+
+        mlp.PredictProba(nbTests, inTests, result);
+
+        double error = 0.0;
+        for (int i = 0; i < nbTests; i++) {
+            for (int j = 0; j < nbOutputs; j++) {
+                error += pow(outTests[i][j] - result[i][j], 2);
+            }
+        }
+
+        std::cout << "error cost: " << error / 2. << std::endl;
+
+        if (printTestResult == 'y') {
+            std::cout << std::endl;
+            for (int i = 0; i < nbTests; i++) {
+                std::cout << "got: ";
+                for (int j = 0; j < nbOutputs; j++) {
+                    std::cout << result[i][j] << ", ";
+                }
+
+                std::cout << "expected: ";
+                for (int j = 0; j < nbOutputs; j++) {
+                    std::cout << outTests[i][j] << ", ";
+                }
+                std::cout << std::endl;
+            }
+        }
+
+        if (printFinalWeights == 'y') {
+            std::cout << std::endl;
+            std::cout << mlp << std::endl;
+        }
     }
 
     return 0;

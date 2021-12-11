@@ -59,6 +59,7 @@ void BaseMLP::Train(int nbExamples, const Matrix &inputs, const Matrix &targets)
 
     randomiseWeights();
 
+    std::cout << "epoch,error" << std::endl;
     for (int e = 0; e < maxEpochs; e++) {
         error = 0;
         for (int p = 0; p < nbExamples; p++) {
@@ -70,7 +71,7 @@ void BaseMLP::Train(int nbExamples, const Matrix &inputs, const Matrix &targets)
             }
         }
         error /= 2;
-        if (e % 10 == 0) std::cout << "Error at epoch " << e << " is " << error << "\n";
+        std::cout << e << "," << error << std::endl;
     }
 }
 
@@ -156,14 +157,34 @@ void BaseMLP::updateWeights(Matrix &dwLower, Matrix &dwUpper) {
 
 void BaseMLP::randomiseWeights() {
     for (int j = 0; j < nbOutputs; j++) {
-        for (int i = 0; i < nbHiddens; i++) {
+        for (int i = 0; i < nbHiddens + 1; i++) {
             wUpper[j][i] = ((((double) rand() / (double) RAND_MAX) * 2) - 1) / (nbOutputs * nbHiddens);
         }
     }
 
     for (int j = 0; j < nbHiddens; j++) {
-        for (int i = 0; i < nbInputs; i++) {
+        for (int i = 0; i < nbInputs + 1; i++) {
             wLower[j][i] = ((((double) rand() / (double) RAND_MAX) * 2) - 1) / (nbHiddens * nbInputs);
         }
     }
+}
+
+std::ostream &operator<<(std::ostream &os, const BaseMLP &mlp) {
+    os << "Hidden layer:" << std::endl;
+    for (int j = 0; j < mlp.nbHiddens; j++) {
+        for (int i = 0; i < mlp.nbInputs + 1; i++) {
+            os << mlp.wLower[j][i] << " ";
+        }
+        os << std::endl;
+    }
+
+    os << "Output layer:" << std::endl;
+    for (int j = 0; j < mlp.nbOutputs; j++) {
+        for (int i = 0; i < mlp.nbHiddens + 1; i++) {
+            os << mlp.wUpper[j][i] << " ";
+        }
+        os << std::endl;
+    }
+
+    return os;
 }

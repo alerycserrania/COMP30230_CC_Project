@@ -45,11 +45,4 @@ void MLPClassifier::PredictProba(int nbTests, const Matrix &inputs, Matrix &resu
             result[i][j] = outputs[j];
         }
     }
-
-    std::for_each(result.cbegin(), result.cend(), [](Vector v) -> void {
-        double sum = std::accumulate(v.cbegin(), v.cend(), 0.0);
-        std::transform(v.cbegin(), v.cend(), v.begin(), [sum](double d) -> double {
-            return d / sum;
-        });
-    });
 }

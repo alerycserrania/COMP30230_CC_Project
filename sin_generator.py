@@ -1,4 +1,5 @@
-import math, random
+import math
+import random
 
 nbExamples = 500
 

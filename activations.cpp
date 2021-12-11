@@ -42,5 +42,5 @@ double activation::hyperbolictan(double x) {
 }
 
 double activation::dhyperbolictan(double x) {
-    return pow(1 / cosh(x), 2);
+    return 1 / (cosh(x) * cosh(x));
 }

@@ -8,6 +8,7 @@
 
 #include <functional>
 #include <vector>
+#include <ostream>
 
 
 typedef std::vector<double> Vector;
@@ -41,6 +42,8 @@ public:
             Matrix &result
     ) = 0;
 
+    friend std::ostream &operator<<(std::ostream &os, const BaseMLP &mlp);
+
 protected:
     void randomiseWeights();
 
@@ -67,6 +70,7 @@ protected:
             Matrix &dwLower,
             Matrix &dwUpper
     );
+
 
 protected:
     int nbInputs, nbHiddens, nbOutputs;
