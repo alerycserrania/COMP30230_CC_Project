@@ -1,4 +1,4 @@
-# COMP30320 - Connectionnist Computing - MLP
+# COMP30230 - Connectionnist Computing - MLP
 
 Aleryc SERRANIA - 21204068
 
